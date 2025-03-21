@@ -1,0 +1,56 @@
+﻿#networks:
+#  app-network:
+#    driver: transparent
+# https://learn.microsoft.com/en-us/virtualization/windowscontainers/container-networking/network-drivers-topologies
+# https://learn.microsoft.com/en-us/virtualization/windowscontainers/container-networking/advanced#bind-a-network-to-a-specific-network-interface
+# STATIC IP: https://octopus.com/blog/lessons-learned-using-docker-for-development-and-testing#lesson-4.net-framework-connection-strings-require-sql-server-to-be-referenced-by-ip-address-when-using-docker-compose
+
+services:
+  # ASP.NET Framework Application (Example)
+  web-app:
+    image: docker-web-app
+    container_name: web-app
+    ports:
+      - "8080:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: always
+
+  # SQL Server container (Custom Docker Image)
+  sqlserver:
+    image: sql-server-backup
+    container_name: sqlserver
+    ports:
+     - "1433:1433"
+    # (NOTE!) Change to your volume
+    volumes:
+      - ./database/:C:/temp/
+      # - C:/temp/:C:/temp/
+    # (NOTE!) Change to your DB and credentials
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=PaSSw0rd
+      - ATTACH_DBS=[{'dbName':'TestDB','dbFiles':['C:\\temp\\TestDB.mdf','C:\\temp\\TestDB_log.ldf']}]
+    #  - ATTACH_DBS=[{'dbName':'JPOC_IT','dbFiles':['C:\\temp\\JPOC_IT.mdf','C:\\temp\\JPOC_IT.ldf']}]
+    healthcheck:
+      test: ["CMD", "sqlcmd", "-S", "localhost", "-U", "sa", "-P", "PaSSw0rd", "-Q", "SELECT 1"]
+      interval: 10s
+      retries: 3
+      start_period: 10s
+      timeout: 3s
+    restart: always
+
+  # Solr container (Custom Docker Image)
+  # solr:
+  #   image: windows-nano-solr
+  #   container_name: windows-solr
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 4G
+  #   ports:
+  #     - "8983:8983"
+  #   restart: always
+  #   networks:
+  #     - app-network
